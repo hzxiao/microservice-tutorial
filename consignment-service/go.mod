@@ -1,4 +1,4 @@
-module consignment-service
+module github.com/hzxiao/microservice-tutorial/consignment-service
 
 go 1.12
 

@@ -1,10 +1,10 @@
 package main
 
 import (
-	pb"consignment-service/proto/consignment"
 	"context"
 	"encoding/json"
-	"google.golang.org/grpc"
+	pb "github.com/hzxiao/microservice-tutorial/consignment-service/proto/consignment"
+	"github.com/micro/go-micro"
 	"io/ioutil"
 	"log"
 	"os"
@@ -29,13 +29,10 @@ func parseFile(file string) (*pb.Consignment, error) {
 }
 
 func main() {
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("Did not connect: %v", err)
-	}
-	defer conn.Close()
+	service := micro.NewService(micro.Name("consignment.cli"))
+	service.Init()
 
-	client := pb.NewShippingServiceClient(conn)
+	client := pb.NewShippingServiceClient("go.micro.srv.consignment", service.Client())
 
 	// Contact the server and print out its response.
 	file := defaultFilename

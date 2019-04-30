@@ -1,15 +1,10 @@
 package main
 
 import (
-	pb "consignment-service/proto/consignment"
-	"context"
-	"google.golang.org/grpc"
-	"log"
-	"net"
-)
-
-const (
-	port = ":50051"
+	"fmt"
+	pb "github.com/hzxiao/microservice-tutorial/consignment-service/proto/consignment"
+	"github.com/micro/go-micro"
+	"golang.org/x/net/context"
 )
 
 type IRepository interface {
@@ -31,40 +26,44 @@ func (repo *Repository) Create(consignment *pb.Consignment) (*pb.Consignment, er
 func (repo *Repository) GetAll() []*pb.Consignment {
 	return repo.consignments
 }
+
 // service要实现在proto中定义的所有方法。当你不确定时
 // 可以去对应的*.pb.go文件里查看需要实现的方法及其定义
 type service struct {
 	repo IRepository
 }
 
-// CreateConsignment - 在proto中，我们只给这个微服务定一个了一个方法
-// 就是这个CreateConsignment方法，它接受一个context以及proto中定义的
-// Consignment消息，这个Consignment是由gRPC的服务器处理后提供给你的
-func (s *service) CreateConsignment(ctx context.Context, req *pb.Consignment) (*pb.Response, error) {
-	// 保存我们的consignment
+func (s *service) CreateConsignment(ctx context.Context, req *pb.Consignment, res *pb.Response) error {
+
+	// Save our consignment
 	consignment, err := s.repo.Create(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	// 返回的数据也要符合proto中定义的数据结构
-	return &pb.Response{Created: true, Consignment: consignment}, nil
+
+	// Return matching the `Response` message we created in our
+	// protobuf definition.
+	res.Created = true
+	res.Consignment = consignment
+	return nil
 }
 
-func (s *service) GetConsignments(ctx context.Context, req *pb.GetRequest) (*pb.Response, error) {
+func (s *service) GetConsignments(ctx context.Context, req *pb.GetRequest, res *pb.Response) error {
 	consignments := s.repo.GetAll()
-	return &pb.Response{Consignments: consignments}, nil
+	res.Consignments = consignments
+	return nil
 }
+
 
 func main() {
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	srv := micro.NewService(micro.Name("go.micro.srv.consignment"))
+	srv.Init()
 
 	repo := &Repository{}
-	s := grpc.NewServer()
-	pb.RegisterShippingServiceServer(s, &service{repo: repo})
-	if err = s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	pb.RegisterShippingServiceHandler(srv.Server(), &service{repo: repo})
+
+	// Run the server
+	if err := srv.Run(); err != nil {
+		fmt.Println(err)
 	}
 }
